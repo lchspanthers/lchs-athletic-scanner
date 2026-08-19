@@ -6,16 +6,12 @@
 <meta name="viewport"
       content="width=device-width, initial-scale=1">
 
-<title>LCHS Athletic Pass Scanner</title>
+<title>LCHS Student Athletic Pass</title>
 
 <script src="https://unpkg.com/html5-qrcode"
         type="text/javascript"></script>
 
 <style>
-
-* {
-  box-sizing: border-box;
-}
 
 body {
   margin: 0;
@@ -26,7 +22,6 @@ body {
 }
 
 .container {
-  width: 100%;
   max-width: 600px;
   margin: auto;
   padding: 20px;
@@ -37,7 +32,7 @@ h1 {
   font-size: 25px;
 }
 
-.gold {
+.subtitle {
   color: #f4c430;
   font-weight: bold;
   font-size: 18px;
@@ -82,12 +77,6 @@ h1 {
   margin: 8px;
 }
 
-.instructions {
-  color: #cccccc;
-  font-size: 15px;
-  margin-top: 15px;
-}
-
 button {
   background: #f4c430;
   color: #111111;
@@ -96,11 +85,6 @@ button {
   border-radius: 9px;
   font-size: 18px;
   font-weight: bold;
-  margin: 10px;
-}
-
-button:active {
-  transform: scale(0.97);
 }
 
 </style>
@@ -116,14 +100,14 @@ button:active {
 LEWIS COUNTY HIGH SCHOOL
 </h1>
 
-<div class="gold">
+<div class="subtitle">
 STUDENT ATHLETIC PASS
 </div>
 
 
 <button
-  id="startButton"
-  onclick="startScanner()">
+id="startButton"
+onclick="startScanner()">
 
 START SCANNER
 
@@ -131,14 +115,6 @@ START SCANNER
 
 
 <div id="reader"></div>
-
-
-<div class="instructions">
-
-Point the camera at the QR code
-on the back of the student's ID.
-
-</div>
 
 
 <div id="result"></div>
@@ -151,19 +127,13 @@ on the back of the student's ID.
 
 /*
 ====================================================
-APPS SCRIPT API
+YOUR CORRECT APPS SCRIPT WEB APP URL
 ====================================================
 */
 
 const API_URL =
-"https://script.google.com/macros/s/AKfycbzFih6G6E6XcMCtzWFHr402OdeCOUsXfQIoZJCeT_98F1DXB2-25Ut0fE5iTnZqh9kCIw/exec";
+"https://script.google.com/macros/s/AKfycbwhggRv4YRLVlFgCrklPIK7g4tcG7YqevJjbs--P90hJsjfE8J2VehL5WDVochfbHqrsQ/exec";
 
-
-/*
-====================================================
-GLOBAL VARIABLES
-====================================================
-*/
 
 let scanner = null;
 
@@ -172,20 +142,14 @@ let scanning = false;
 
 /*
 ====================================================
-START CAMERA / QR SCANNER
+START CAMERA
 ====================================================
 */
 
 function startScanner() {
 
-  const button =
-    document.getElementById("startButton");
-
-  button.style.display = "none";
-
-
-  document.getElementById("result")
-    .innerHTML = "";
+  document.getElementById("startButton")
+    .style.display = "none";
 
 
   scanner =
@@ -201,18 +165,14 @@ function startScanner() {
       facingMode: "environment"
     },
 
-
     {
-
       fps: 10,
 
       qrbox: {
         width: 250,
         height: 250
       }
-
     },
-
 
     function(decodedText) {
 
@@ -240,22 +200,15 @@ function startScanner() {
 
     },
 
-
     function(errorMessage) {
 
-      /*
-       * Normal QR scanning errors are ignored.
-       */
+      // Ignore normal scanning messages.
 
     }
 
   )
 
-
   .catch(function(error) {
-
-    console.error(error);
-
 
     showError(
       "CAMERA ERROR",
@@ -263,8 +216,8 @@ function startScanner() {
     );
 
 
-    button.style.display =
-      "inline-block";
+    document.getElementById("startButton")
+      .style.display = "inline-block";
 
   });
 
@@ -273,7 +226,7 @@ function startScanner() {
 
 /*
 ====================================================
-SEND STUDENT ID TO GOOGLE APPS SCRIPT
+SEND QR CODE TO GOOGLE APPS SCRIPT
 ====================================================
 */
 
@@ -285,7 +238,7 @@ function processStudent(studentId) {
 
 
   /*
-   * Create a unique JSONP callback.
+   * Create unique callback.
    */
 
   const callbackName =
@@ -300,10 +253,6 @@ function processStudent(studentId) {
   window[callbackName] =
     function(result) {
 
-      /*
-       * Remove callback after use.
-       */
-
       try {
         delete window[callbackName];
       }
@@ -311,17 +260,13 @@ function processStudent(studentId) {
       catch (e) {}
 
 
-      /*
-       * Display result.
-       */
-
       showResult(result);
 
     };
 
 
   /*
-   * Create script element.
+   * Create script request.
    */
 
   const script =
@@ -329,7 +274,7 @@ function processStudent(studentId) {
 
 
   /*
-   * Build API request.
+   * Send Student ID to Apps Script.
    */
 
   script.src =
@@ -349,13 +294,11 @@ function processStudent(studentId) {
     ) +
 
     "&callback=" +
-    encodeURIComponent(
-      callbackName
-    );
+    callbackName;
 
 
   /*
-   * Handle communication failure.
+   * Handle connection failure.
    */
 
   script.onerror =
@@ -380,7 +323,7 @@ function processStudent(studentId) {
 
 
   /*
-   * Add request to page.
+   * Send request.
    */
 
   document.body.appendChild(script);
@@ -390,7 +333,7 @@ function processStudent(studentId) {
 
 /*
 ====================================================
-SHOW SUCCESS / ERROR / DUPLICATE
+SHOW RESULT
 ====================================================
 */
 
@@ -453,9 +396,7 @@ function showResult(r) {
 
       '<div style="margin-top:10px">' +
 
-      'Total Athletic Events: ' +
-
-      '<b>' +
+      'Total Events: <b>' +
 
       escapeHtml(
         r.total
@@ -609,47 +550,31 @@ function showError(
 
 /*
 ====================================================
-RESET SCANNER
+RESET
 ====================================================
 */
 
 function resetScanner() {
 
-
-  const result =
-    document.getElementById("result");
-
-
-  result.className =
-    "";
+  document.getElementById("result")
+    .className = "";
 
 
-  result.innerHTML =
-    "";
+  document.getElementById("result")
+    .innerHTML = "";
 
 
-  const reader =
-    document.getElementById("reader");
+  document.getElementById("reader")
+    .innerHTML = "";
 
 
-  reader.innerHTML =
-    "";
+  document.getElementById("startButton")
+    .style.display = "inline-block";
 
 
-  const button =
-    document.getElementById("startButton");
+  scanner = null;
 
-
-  button.style.display =
-    "inline-block";
-
-
-  scanner =
-    null;
-
-
-  scanning =
-    false;
+  scanning = false;
 
 }
 
