@@ -885,136 +885,104 @@ DISPLAY SCAN RESULT
 
 function showResult(r) {
 
-
+  /*
+   * SUCCESS
+   */
   if (r.ok) {
 
     const result =
-      document.getElementById(
-        "result"
-      );
-
+      document.getElementById("result");
 
     result.className =
       "success";
 
-
     result.innerHTML =
 
       '<div class="name">' +
-
       '✓ ' +
-
-      escapeHtml(
-        r.student
-      ) +
-
+      escapeHtml(r.student || "STUDENT") +
       '</div>' +
 
       '<div class="big">' +
-
       'GRADE ' +
-
-      escapeHtml(
-        r.grade
-      ) +
-
+      escapeHtml(r.grade || "") +
       '</div>' +
 
       '<div class="big">' +
-
       'ATTENDANCE RECORDED' +
-
       '</div>' +
 
       '<div>' +
-
-      escapeHtml(
-        r.event
-      ) +
-
+      escapeHtml(r.event || "") +
       '</div>' +
 
       '<div class="small">' +
-
       'Total Events Attended: <b>' +
+      escapeHtml(r.total || "") +
+      '</b>' +
+      '</div>';
 
-      escapeHtml(
-        r.total
-      ) +
-
-      '</b></div>';
-
+    /*
+     * Put the student's name in the
+     * large status bar too.
+     */
 
     setStatus(
-      "✓ SUCCESS",
+      "✓ " + (r.student || "ATTENDANCE RECORDED"),
       ""
     );
 
   }
 
 
+  /*
+   * DUPLICATE
+   */
   else if (
-    r.type ===
-    "DUPLICATE"
+    r.type === "DUPLICATE"
   ) {
 
     const result =
-      document.getElementById(
-        "result"
-      );
-
+      document.getElementById("result");
 
     result.className =
       "warn";
 
-
     result.innerHTML =
 
       '<div class="name">' +
-
       '⚠ ALREADY CHECKED IN' +
-
       '</div>' +
 
       '<div class="big">' +
-
-      escapeHtml(
-        r.student
-      ) +
-
+      escapeHtml(r.student || "") +
       '</div>' +
 
       '<div>' +
-
-      escapeHtml(
-        r.event || ""
-      ) +
-
+      escapeHtml(r.event || "") +
       '</div>';
 
-
     setStatus(
-      "DUPLICATE",
+      "⚠ " + (r.student || "DUPLICATE"),
       ""
     );
 
   }
 
 
+  /*
+   * ERROR
+   */
   else {
 
     showError(
-
       "✕ " +
       (
         r.message ||
         "UNKNOWN ERROR"
       ),
-
       ""
-
     );
-
 
     setStatus(
       "SCAN FAILED",
@@ -1024,10 +992,12 @@ function showResult(r) {
   }
 
 
+  /*
+   * Unlock scanner after result
+   */
   unlockScanner();
 
 }
-
 
 /*
 ====================================================
