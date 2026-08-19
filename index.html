@@ -13,36 +13,44 @@
 
 <style>
 
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
-  background: #111;
+  background: #111111;
   color: white;
   font-family: Arial, sans-serif;
   text-align: center;
 }
 
 .container {
+  width: 100%;
   max-width: 600px;
   margin: auto;
   padding: 20px;
 }
 
 h1 {
-  margin-bottom: 5px;
+  margin: 5px 0;
   font-size: 25px;
 }
 
 .gold {
   color: #f4c430;
   font-weight: bold;
+  font-size: 18px;
   margin-bottom: 20px;
 }
 
 #reader {
+  width: 100%;
+  max-width: 500px;
+  margin: 20px auto;
   background: white;
   border-radius: 12px;
   overflow: hidden;
-  margin: 20px auto;
 }
 
 #result {
@@ -74,14 +82,25 @@ h1 {
   margin: 8px;
 }
 
+.instructions {
+  color: #cccccc;
+  font-size: 15px;
+  margin-top: 15px;
+}
+
 button {
   background: #f4c430;
-  color: #111;
+  color: #111111;
   border: none;
-  padding: 15px 25px;
-  border-radius: 8px;
+  padding: 16px 30px;
+  border-radius: 9px;
   font-size: 18px;
   font-weight: bold;
+  margin: 10px;
+}
+
+button:active {
+  transform: scale(0.97);
 }
 
 </style>
@@ -93,20 +112,34 @@ button {
 
 <div class="container">
 
-<h1>LEWIS COUNTY HIGH SCHOOL</h1>
+<h1>
+LEWIS COUNTY HIGH SCHOOL
+</h1>
 
 <div class="gold">
 STUDENT ATHLETIC PASS
 </div>
 
-<button id="startButton"
-        onclick="startScanner()">
+
+<button
+  id="startButton"
+  onclick="startScanner()">
 
 START SCANNER
 
 </button>
 
+
 <div id="reader"></div>
+
+
+<div class="instructions">
+
+Point the camera at the QR code
+on the back of the student's ID.
+
+</div>
+
 
 <div id="result"></div>
 
@@ -115,19 +148,44 @@ START SCANNER
 
 <script>
 
+
+/*
+====================================================
+APPS SCRIPT API
+====================================================
+*/
+
 const API_URL =
 "https://script.google.com/macros/s/AKfycbzFih6G6E6XcMCtzWFHr402OdeCOUsXfQIoZJCeT_98F1DXB2-25Ut0fE5iTnZqh9kCIw/exec";
 
+
+/*
+====================================================
+GLOBAL VARIABLES
+====================================================
+*/
 
 let scanner = null;
 
 let scanning = false;
 
 
+/*
+====================================================
+START CAMERA / QR SCANNER
+====================================================
+*/
+
 function startScanner() {
 
-  document.getElementById("startButton")
-    .style.display = "none";
+  const button =
+    document.getElementById("startButton");
+
+  button.style.display = "none";
+
+
+  document.getElementById("result")
+    .innerHTML = "";
 
 
   scanner =
@@ -143,7 +201,9 @@ function startScanner() {
       facingMode: "environment"
     },
 
+
     {
+
       fps: 10,
 
       qrbox: {
@@ -156,7 +216,10 @@ function startScanner() {
 
     function(decodedText) {
 
-      if (!scanning) return;
+      if (!scanning) {
+        return;
+      }
+
 
       scanning = false;
 
@@ -180,7 +243,9 @@ function startScanner() {
 
     function(errorMessage) {
 
-      // Ignore normal QR scanning errors.
+      /*
+       * Normal QR scanning errors are ignored.
+       */
 
     }
 
@@ -189,19 +254,28 @@ function startScanner() {
 
   .catch(function(error) {
 
+    console.error(error);
+
+
     showError(
       "CAMERA ERROR",
       error.message
     );
 
 
-    document.getElementById("startButton")
-      .style.display = "inline-block";
+    button.style.display =
+      "inline-block";
 
   });
 
 }
 
+
+/*
+====================================================
+SEND STUDENT ID TO GOOGLE APPS SCRIPT
+====================================================
+*/
 
 function processStudent(studentId) {
 
@@ -210,24 +284,53 @@ function processStudent(studentId) {
   );
 
 
+  /*
+   * Create a unique JSONP callback.
+   */
+
   const callbackName =
     "lchsCallback_" +
     Date.now();
 
 
+  /*
+   * Create callback function.
+   */
+
   window[callbackName] =
     function(result) {
 
-      delete window[callbackName];
+      /*
+       * Remove callback after use.
+       */
+
+      try {
+        delete window[callbackName];
+      }
+
+      catch (e) {}
+
+
+      /*
+       * Display result.
+       */
 
       showResult(result);
 
     };
 
 
+  /*
+   * Create script element.
+   */
+
   const script =
     document.createElement("script");
 
+
+  /*
+   * Build API request.
+   */
 
   script.src =
 
@@ -236,107 +339,209 @@ function processStudent(studentId) {
     "?action=scan" +
 
     "&studentId=" +
-    encodeURIComponent(studentId) +
+    encodeURIComponent(
+      String(studentId).trim()
+    ) +
 
     "&scanner=" +
-    encodeURIComponent("Main Gate") +
+    encodeURIComponent(
+      "Main Gate"
+    ) +
 
     "&callback=" +
-    callbackName;
+    encodeURIComponent(
+      callbackName
+    );
 
+
+  /*
+   * Handle communication failure.
+   */
 
   script.onerror =
     function() {
 
-      delete window[callbackName];
+      try {
+        delete window[callbackName];
+      }
+
+      catch (e) {}
+
 
       showError(
+
         "SYSTEM ERROR",
+
         "Could not contact attendance system."
+
       );
 
     };
 
+
+  /*
+   * Add request to page.
+   */
 
   document.body.appendChild(script);
 
 }
 
 
+/*
+====================================================
+SHOW SUCCESS / ERROR / DUPLICATE
+====================================================
+*/
+
 function showResult(r) {
+
+
+  /*
+   * SUCCESS
+   */
 
   if (r.ok) {
 
-    document.getElementById("result")
-      .className = "success";
+    const result =
+      document.getElementById("result");
 
 
-    document.getElementById("result")
-      .innerHTML =
-
-      '<div class="name">✓ ' +
-      escapeHtml(r.student) +
-      '</div>' +
-
-      '<div class="big">GRADE ' +
-      escapeHtml(r.grade) +
-      '</div>' +
-
-      '<div class="big">' +
-      'ATTENDANCE RECORDED' +
-      '</div>' +
-
-      '<div>' +
-      escapeHtml(r.event) +
-      '</div>' +
-
-      '<div style="margin-top:10px">' +
-      'Total Events: <b>' +
-      escapeHtml(r.total) +
-      '</b>' +
-      '</div>';
-
-  }
+    result.className =
+      "success";
 
 
-  else if (r.type === "DUPLICATE") {
-
-    document.getElementById("result")
-      .className = "warn";
-
-
-    document.getElementById("result")
-      .innerHTML =
+    result.innerHTML =
 
       '<div class="name">' +
-      '⚠ ALREADY CHECKED IN' +
+
+      '✓ ' +
+
+      escapeHtml(
+        r.student
+      ) +
+
       '</div>' +
 
+
       '<div class="big">' +
-      escapeHtml(r.student) +
+
+      'GRADE ' +
+
+      escapeHtml(
+        r.grade
+      ) +
+
+      '</div>' +
+
+
+      '<div class="big">' +
+
+      'ATTENDANCE RECORDED' +
+
+      '</div>' +
+
+
+      '<div>' +
+
+      escapeHtml(
+        r.event
+      ) +
+
+      '</div>' +
+
+
+      '<div style="margin-top:10px">' +
+
+      'Total Athletic Events: ' +
+
+      '<b>' +
+
+      escapeHtml(
+        r.total
+      ) +
+
+      '</b>' +
+
       '</div>';
 
   }
 
+
+  /*
+   * DUPLICATE
+   */
+
+  else if (
+    r.type === "DUPLICATE"
+  ) {
+
+    const result =
+      document.getElementById("result");
+
+
+    result.className =
+      "warn";
+
+
+    result.innerHTML =
+
+      '<div class="name">' +
+
+      '⚠ ALREADY CHECKED IN' +
+
+      '</div>' +
+
+
+      '<div class="big">' +
+
+      escapeHtml(
+        r.student
+      ) +
+
+      '</div>';
+
+  }
+
+
+  /*
+   * OTHER ERROR
+   */
 
   else {
 
     showError(
-      "✕ " + r.message,
+
+      "✕ " +
+      (
+        r.message ||
+        "UNKNOWN ERROR"
+      ),
+
       ""
+
     );
 
   }
 
 
-  setTimeout(function() {
+  /*
+   * Reset after 2.5 seconds.
+   */
 
-    resetScanner();
-
-  }, 2500);
+  setTimeout(
+    resetScanner,
+    2500
+  );
 
 }
 
+
+/*
+====================================================
+SHOW MESSAGE
+====================================================
+*/
 
 function showMessage(message) {
 
@@ -344,81 +549,143 @@ function showMessage(message) {
     document.getElementById("result");
 
 
-  result.className = "";
+  result.className =
+    "";
 
 
   result.innerHTML =
 
     '<div class="big">' +
-    message +
+
+    escapeHtml(
+      message
+    ) +
+
     '</div>';
 
 }
 
 
-function showError(title, message) {
+/*
+====================================================
+SHOW ERROR
+====================================================
+*/
+
+function showError(
+  title,
+  message
+) {
 
   const result =
     document.getElementById("result");
 
 
-  result.className = "bad";
+  result.className =
+    "bad";
 
 
   result.innerHTML =
 
     '<div class="name">' +
-    escapeHtml(title) +
+
+    escapeHtml(
+      title
+    ) +
+
     '</div>' +
 
+
     '<div class="big">' +
-    escapeHtml(message) +
+
+    escapeHtml(
+      message
+    ) +
+
     '</div>';
 
 }
 
 
+/*
+====================================================
+RESET SCANNER
+====================================================
+*/
+
 function resetScanner() {
 
-  document.getElementById("result")
-    .className = "";
+
+  const result =
+    document.getElementById("result");
 
 
-  document.getElementById("result")
-    .innerHTML = "";
+  result.className =
+    "";
 
 
-  document.getElementById("reader")
-    .innerHTML = "";
+  result.innerHTML =
+    "";
 
 
-  document.getElementById("startButton")
-    .style.display = "inline-block";
+  const reader =
+    document.getElementById("reader");
 
 
-  scanner = null;
+  reader.innerHTML =
+    "";
 
-  scanning = false;
+
+  const button =
+    document.getElementById("startButton");
+
+
+  button.style.display =
+    "inline-block";
+
+
+  scanner =
+    null;
+
+
+  scanning =
+    false;
 
 }
 
 
+/*
+====================================================
+ESCAPE HTML
+====================================================
+*/
+
 function escapeHtml(text) {
 
   return String(text)
-    .replace(/[&<>"']/g, function(m) {
 
-      return {
+    .replace(
+      /[&<>"']/g,
 
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
+      function(m) {
 
-      }[m];
+        return {
 
-    });
+          '&': '&amp;',
+
+          '<': '&lt;',
+
+          '>': '&gt;',
+
+          '"': '&quot;',
+
+          "'": '&#039;'
+
+        }[m];
+
+      }
+
+    );
 
 }
 
