@@ -13,6 +13,10 @@
 
 <style>
 
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
   background: #111111;
@@ -22,6 +26,7 @@ body {
 }
 
 .container {
+  width: 100%;
   max-width: 600px;
   margin: auto;
   padding: 20px;
@@ -36,23 +41,35 @@ h1 {
   color: #f4c430;
   font-weight: bold;
   font-size: 18px;
-  margin-bottom: 20px;
+  margin-bottom: 15px;
+}
+
+#statusBar {
+  background: #222222;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 15px;
+  font-weight: bold;
+}
+
+.ready {
+  color: #f4c430;
 }
 
 #reader {
   width: 100%;
   max-width: 500px;
-  margin: 20px auto;
+  margin: 15px auto;
   background: white;
   border-radius: 12px;
   overflow: hidden;
 }
 
 #result {
-  margin-top: 20px;
+  margin-top: 15px;
   padding: 20px;
   border-radius: 15px;
-  min-height: 80px;
+  min-height: 100px;
 }
 
 .success {
@@ -68,13 +85,18 @@ h1 {
 }
 
 .name {
-  font-size: 28px;
+  font-size: 30px;
   font-weight: bold;
 }
 
 .big {
-  font-size: 20px;
+  font-size: 21px;
   margin: 8px;
+}
+
+.small {
+  margin-top: 10px;
+  font-size: 15px;
 }
 
 button {
@@ -85,6 +107,7 @@ button {
   border-radius: 9px;
   font-size: 18px;
   font-weight: bold;
+  margin-top: 10px;
 }
 
 </style>
@@ -105,6 +128,11 @@ STUDENT ATHLETIC PASS
 </div>
 
 
+<div id="statusBar">
+<span class="ready">READY TO SCAN</span>
+</div>
+
+
 <button
 id="startButton"
 onclick="startScanner()">
@@ -116,7 +144,6 @@ START SCANNER
 
 <div id="reader"></div>
 
-
 <div id="result"></div>
 
 </div>
@@ -127,7 +154,7 @@ START SCANNER
 
 /*
 ====================================================
-YOUR CORRECT APPS SCRIPT WEB APP URL
+APPS SCRIPT URL
 ====================================================
 */
 
@@ -135,21 +162,55 @@ const API_URL =
 "https://script.google.com/macros/s/AKfycbxX4O8t7AmQhFzMNfxEG7n5YZnBEesD24-bka1PlqDTkVN2dCKJ-wuntxdObCpS4eLu/exec";
 
 
+/*
+====================================================
+GLOBAL VARIABLES
+====================================================
+*/
+
 let scanner = null;
 
 let scanning = false;
 
+let processing = false;
+
 
 /*
 ====================================================
-START CAMERA
+START SCANNER
 ====================================================
 */
 
 function startScanner() {
 
-  document.getElementById("startButton")
-    .style.display = "none";
+  if (processing) {
+    return;
+  }
+
+
+  const button =
+    document.getElementById("startButton");
+
+
+  button.style.display = "none";
+
+
+  setStatus(
+    "READY TO SCAN",
+    "ready"
+  );
+
+
+  document.getElementById("result")
+    .className = "";
+
+
+  document.getElementById("result")
+    .innerHTML = "";
+
+
+  document.getElementById("reader")
+    .innerHTML = "";
 
 
   scanner =
@@ -166,7 +227,7 @@ function startScanner() {
     },
 
     {
-      fps: 10,
+      fps: 12,
 
       qrbox: {
         width: 250,
@@ -176,12 +237,23 @@ function startScanner() {
 
     function(decodedText) {
 
-      if (!scanning) {
+      if (
+        !scanning ||
+        processing
+      ) {
         return;
       }
 
 
       scanning = false;
+
+      processing = true;
+
+
+      setStatus(
+        "PROCESSING...",
+        ""
+      );
 
 
       scanner.stop()
@@ -202,7 +274,7 @@ function startScanner() {
 
     function(errorMessage) {
 
-      // Ignore normal scanning messages.
+      // Ignore normal scan errors.
 
     }
 
@@ -210,14 +282,25 @@ function startScanner() {
 
   .catch(function(error) {
 
+    scanning = false;
+
+    processing = false;
+
+
     showError(
       "CAMERA ERROR",
       error.message
     );
 
 
-    document.getElementById("startButton")
-      .style.display = "inline-block";
+    button.style.display =
+      "inline-block";
+
+
+    setStatus(
+      "SCANNER STOPPED",
+      ""
+    );
 
   });
 
@@ -226,7 +309,7 @@ function startScanner() {
 
 /*
 ====================================================
-SEND QR CODE TO GOOGLE APPS SCRIPT
+PROCESS STUDENT
 ====================================================
 */
 
@@ -237,18 +320,10 @@ function processStudent(studentId) {
   );
 
 
-  /*
-   * Create unique callback.
-   */
-
   const callbackName =
     "lchsCallback_" +
     Date.now();
 
-
-  /*
-   * Create callback function.
-   */
 
   window[callbackName] =
     function(result) {
@@ -265,17 +340,9 @@ function processStudent(studentId) {
     };
 
 
-  /*
-   * Create script request.
-   */
-
   const script =
     document.createElement("script");
 
-
-  /*
-   * Send Student ID to Apps Script.
-   */
 
   script.src =
 
@@ -297,10 +364,6 @@ function processStudent(studentId) {
     callbackName;
 
 
-  /*
-   * Handle connection failure.
-   */
-
   script.onerror =
     function() {
 
@@ -312,19 +375,15 @@ function processStudent(studentId) {
 
 
       showError(
-
         "SYSTEM ERROR",
-
         "Could not contact attendance system."
-
       );
+
+
+      scheduleRestart();
 
     };
 
-
-  /*
-   * Send request.
-   */
 
   document.body.appendChild(script);
 
@@ -394,9 +453,9 @@ function showResult(r) {
       '</div>' +
 
 
-      '<div style="margin-top:10px">' +
+      '<div class="small">' +
 
-      'Total Events: <b>' +
+      'Total Events Attended: <b>' +
 
       escapeHtml(
         r.total
@@ -405,6 +464,12 @@ function showResult(r) {
       '</b>' +
 
       '</div>';
+
+
+    setStatus(
+      "SUCCESS",
+      ""
+    );
 
   }
 
@@ -440,7 +505,22 @@ function showResult(r) {
         r.student
       ) +
 
+      '</div>' +
+
+
+      '<div>' +
+
+      escapeHtml(
+        r.event || ""
+      ) +
+
       '</div>';
+
+
+    setStatus(
+      "DUPLICATE",
+      ""
+    );
 
   }
 
@@ -463,16 +543,77 @@ function showResult(r) {
 
     );
 
+
+    setStatus(
+      "SCAN FAILED",
+      ""
+    );
+
   }
 
 
-  /*
-   * Reset after 2.5 seconds.
-   */
+  scheduleRestart();
+
+}
+
+
+/*
+====================================================
+AUTOMATIC RESTART
+====================================================
+*/
+
+function scheduleRestart() {
 
   setTimeout(
-    resetScanner,
-    2500
+    function() {
+
+      restartScanner();
+
+    },
+
+    2000
+  );
+
+}
+
+
+function restartScanner() {
+
+  scanning = false;
+
+  processing = false;
+
+
+  document.getElementById("result")
+    .className = "";
+
+
+  document.getElementById("result")
+    .innerHTML = "";
+
+
+  document.getElementById("reader")
+    .innerHTML = "";
+
+
+  scanner = null;
+
+
+  setStatus(
+    "READY TO SCAN",
+    "ready"
+  );
+
+
+  setTimeout(
+    function() {
+
+      startScanner();
+
+    },
+
+    250
   );
 
 }
@@ -480,7 +621,7 @@ function showResult(r) {
 
 /*
 ====================================================
-SHOW MESSAGE
+DISPLAY HELPERS
 ====================================================
 */
 
@@ -490,8 +631,7 @@ function showMessage(message) {
     document.getElementById("result");
 
 
-  result.className =
-    "";
+  result.className = "";
 
 
   result.innerHTML =
@@ -506,12 +646,6 @@ function showMessage(message) {
 
 }
 
-
-/*
-====================================================
-SHOW ERROR
-====================================================
-*/
 
 function showError(
   title,
@@ -548,33 +682,30 @@ function showError(
 }
 
 
-/*
-====================================================
-RESET
-====================================================
-*/
+function setStatus(
+  text,
+  cssClass
+) {
 
-function resetScanner() {
-
-  document.getElementById("result")
-    .className = "";
-
-
-  document.getElementById("result")
-    .innerHTML = "";
+  const status =
+    document.getElementById(
+      "statusBar"
+    );
 
 
-  document.getElementById("reader")
-    .innerHTML = "";
+  status.innerHTML =
 
+    '<span class="' +
 
-  document.getElementById("startButton")
-    .style.display = "inline-block";
+    cssClass +
 
+    '">' +
 
-  scanner = null;
+    escapeHtml(
+      text
+    ) +
 
-  scanning = false;
+    '</span>';
 
 }
 
