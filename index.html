@@ -3,13 +3,11 @@
 
 <head>
 
-<meta name="viewport"
-      content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
 <title>LCHS Student Athletic Pass</title>
 
-<script src="https://unpkg.com/html5-qrcode"
-        type="text/javascript"></script>
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
 <style>
 
@@ -50,6 +48,7 @@ h1 {
   padding: 12px;
   margin-bottom: 15px;
   font-weight: bold;
+  font-size: 18px;
 }
 
 .ready {
@@ -114,33 +113,23 @@ button {
 
 </head>
 
-
 <body>
 
 <div class="container">
 
-<h1>
-LEWIS COUNTY HIGH SCHOOL
-</h1>
+<h1>LEWIS COUNTY HIGH SCHOOL</h1>
 
 <div class="subtitle">
 STUDENT ATHLETIC PASS
 </div>
 
-
 <div id="statusBar">
-<span class="ready">READY TO SCAN</span>
+  <span class="ready">PRESS START SCANNER</span>
 </div>
 
-
-<button
-id="startButton"
-onclick="startScanner()">
-
+<button id="startButton" onclick="startScanner()">
 START SCANNER
-
 </button>
-
 
 <div id="reader"></div>
 
@@ -151,10 +140,9 @@ START SCANNER
 
 <script>
 
-
 /*
 ====================================================
-APPS SCRIPT URL
+NEW GOOGLE APPS SCRIPT URL
 ====================================================
 */
 
@@ -164,61 +152,29 @@ const API_URL =
 
 /*
 ====================================================
-GLOBAL VARIABLES
+GLOBALS
 ====================================================
 */
 
 let scanner = null;
 
-let scanning = false;
-
 let processing = false;
+
+let scannerRunning = false;
 
 
 /*
 ====================================================
-START SCANNER
+START CAMERA ONCE
 ====================================================
 */
 
 function startScanner() {
 
-  if (processing) {
-    return;
-  }
+  document.getElementById("startButton")
+    .style.display = "none";
 
-
-  const button =
-    document.getElementById("startButton");
-
-
-  button.style.display = "none";
-
-
-  setStatus(
-    "READY TO SCAN",
-    "ready"
-  );
-
-
-  document.getElementById("result")
-    .className = "";
-
-
-  document.getElementById("result")
-    .innerHTML = "";
-
-
-  document.getElementById("reader")
-    .innerHTML = "";
-
-
-  scanner =
-    new Html5Qrcode("reader");
-
-
-  scanning = true;
-
+  scanner = new Html5Qrcode("reader");
 
   scanner.start(
 
@@ -235,72 +191,37 @@ function startScanner() {
       }
     },
 
-    function(decodedText) {
-
-      if (
-        !scanning ||
-        processing
-      ) {
-        return;
-      }
-
-
-      scanning = false;
-
-      processing = true;
-
-
-      setStatus(
-        "PROCESSING...",
-        ""
-      );
-
-
-      scanner.stop()
-
-        .then(function() {
-
-          processStudent(decodedText);
-
-        })
-
-        .catch(function() {
-
-          processStudent(decodedText);
-
-        });
-
-    },
+    onScanSuccess,
 
     function(errorMessage) {
-
-      // Ignore normal scan errors.
-
+      // Normal QR detection failures are ignored.
     }
 
   )
 
-  .catch(function(error) {
+  .then(function() {
 
-    scanning = false;
+    scannerRunning = true;
 
     processing = false;
 
+    setStatus("READY TO SCAN", "ready");
+
+  })
+
+  .catch(function(error) {
+
+    console.error(error);
 
     showError(
       "CAMERA ERROR",
       error.message
     );
 
+    document.getElementById("startButton")
+      .style.display = "inline-block";
 
-    button.style.display =
-      "inline-block";
-
-
-    setStatus(
-      "SCANNER STOPPED",
-      ""
-    );
+    setStatus("SCANNER STOPPED", "");
 
   });
 
@@ -309,7 +230,60 @@ function startScanner() {
 
 /*
 ====================================================
-PROCESS STUDENT
+QR DETECTED
+====================================================
+*/
+
+function onScanSuccess(decodedText) {
+
+  /*
+   * Ignore additional QR detections while
+   * one student is being processed.
+   */
+
+  if (processing) {
+    return;
+  }
+
+  processing = true;
+
+  setStatus(
+    "PROCESSING STUDENT...",
+    ""
+  );
+
+
+  /*
+   * IMPORTANT:
+   *
+   * Pause QR detection.
+   * DO NOT stop the camera.
+   */
+
+  try {
+
+    scanner.pause(true);
+
+  }
+
+  catch (e) {
+
+    console.log(
+      "Pause warning:",
+      e
+    );
+
+  }
+
+
+  processStudent(decodedText);
+
+}
+
+
+/*
+====================================================
+SEND STUDENT TO GOOGLE
 ====================================================
 */
 
@@ -375,12 +349,15 @@ function processStudent(studentId) {
 
 
       showError(
+
         "SYSTEM ERROR",
+
         "Could not contact attendance system."
+
       );
 
 
-      scheduleRestart();
+      resumeAfterDelay();
 
     };
 
@@ -400,7 +377,7 @@ function showResult(r) {
 
 
   /*
-   * SUCCESS
+   * SUCCESSFUL CHECK-IN
    */
 
   if (r.ok) {
@@ -419,23 +396,17 @@ function showResult(r) {
 
       '✓ ' +
 
-      escapeHtml(
-        r.student
-      ) +
+      escapeHtml(r.student) +
 
       '</div>' +
-
 
       '<div class="big">' +
 
       'GRADE ' +
 
-      escapeHtml(
-        r.grade
-      ) +
+      escapeHtml(r.grade) +
 
       '</div>' +
-
 
       '<div class="big">' +
 
@@ -443,23 +414,17 @@ function showResult(r) {
 
       '</div>' +
 
-
       '<div>' +
 
-      escapeHtml(
-        r.event
-      ) +
+      escapeHtml(r.event) +
 
       '</div>' +
-
 
       '<div class="small">' +
 
       'Total Events Attended: <b>' +
 
-      escapeHtml(
-        r.total
-      ) +
+      escapeHtml(r.total) +
 
       '</b>' +
 
@@ -467,7 +432,7 @@ function showResult(r) {
 
 
     setStatus(
-      "SUCCESS",
+      "✓ SUCCESS",
       ""
     );
 
@@ -498,21 +463,15 @@ function showResult(r) {
 
       '</div>' +
 
-
       '<div class="big">' +
 
-      escapeHtml(
-        r.student
-      ) +
+      escapeHtml(r.student) +
 
       '</div>' +
 
-
       '<div>' +
 
-      escapeHtml(
-        r.event || ""
-      ) +
+      escapeHtml(r.event || "") +
 
       '</div>';
 
@@ -552,23 +511,82 @@ function showResult(r) {
   }
 
 
-  scheduleRestart();
+  resumeAfterDelay();
 
 }
 
 
 /*
 ====================================================
-AUTOMATIC RESTART
+RESUME SAME CAMERA
 ====================================================
 */
 
-function scheduleRestart() {
+function resumeAfterDelay() {
+
+  /*
+   * Show the result for 2 seconds.
+   */
 
   setTimeout(
+
     function() {
 
-      restartScanner();
+      document.getElementById("result")
+        .className = "";
+
+
+      document.getElementById("result")
+        .innerHTML = "";
+
+
+      /*
+       * Resume QR detection without
+       * closing/reopening the camera.
+       */
+
+      try {
+
+        scanner.resume();
+
+        processing = false;
+
+        setStatus(
+          "READY TO SCAN",
+          "ready"
+        );
+
+      }
+
+      catch (error) {
+
+        console.error(
+          "Resume error:",
+          error
+        );
+
+
+        /*
+         * Only show restart button if something
+         * actually went wrong with the camera.
+         */
+
+        processing = false;
+
+        scannerRunning = false;
+
+
+        showError(
+          "SCANNER ERROR",
+          "Tap START SCANNER to restart."
+        );
+
+
+        document.getElementById("startButton")
+          .style.display =
+          "inline-block";
+
+      }
 
     },
 
@@ -578,50 +596,9 @@ function scheduleRestart() {
 }
 
 
-function restartScanner() {
-
-  scanning = false;
-
-  processing = false;
-
-
-  document.getElementById("result")
-    .className = "";
-
-
-  document.getElementById("result")
-    .innerHTML = "";
-
-
-  document.getElementById("reader")
-    .innerHTML = "";
-
-
-  scanner = null;
-
-
-  setStatus(
-    "READY TO SCAN",
-    "ready"
-  );
-
-
-  setTimeout(
-    function() {
-
-      startScanner();
-
-    },
-
-    250
-  );
-
-}
-
-
 /*
 ====================================================
-DISPLAY HELPERS
+HELPERS
 ====================================================
 */
 
@@ -638,9 +615,7 @@ function showMessage(message) {
 
     '<div class="big">' +
 
-    escapeHtml(
-      message
-    ) +
+    escapeHtml(message) +
 
     '</div>';
 
@@ -664,18 +639,13 @@ function showError(
 
     '<div class="name">' +
 
-    escapeHtml(
-      title
-    ) +
+    escapeHtml(title) +
 
     '</div>' +
 
-
     '<div class="big">' +
 
-    escapeHtml(
-      message
-    ) +
+    escapeHtml(message) +
 
     '</div>';
 
@@ -687,13 +657,9 @@ function setStatus(
   cssClass
 ) {
 
-  const status =
-    document.getElementById(
-      "statusBar"
-    );
-
-
-  status.innerHTML =
+  document.getElementById(
+    "statusBar"
+  ).innerHTML =
 
     '<span class="' +
 
@@ -701,25 +667,16 @@ function setStatus(
 
     '">' +
 
-    escapeHtml(
-      text
-    ) +
+    escapeHtml(text) +
 
     '</span>';
 
 }
 
 
-/*
-====================================================
-ESCAPE HTML
-====================================================
-*/
-
 function escapeHtml(text) {
 
   return String(text)
-
     .replace(
       /[&<>"']/g,
 
@@ -728,19 +685,14 @@ function escapeHtml(text) {
         return {
 
           '&': '&amp;',
-
           '<': '&lt;',
-
           '>': '&gt;',
-
           '"': '&quot;',
-
           "'": '&#039;'
 
         }[m];
 
       }
-
     );
 
 }
