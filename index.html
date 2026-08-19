@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<meta name="viewport"
+      content="width=device-width, initial-scale=1">
+
+<title>LCHS Athletic Pass Scanner</title>
+
+<script src="https://unpkg.com/html5-qrcode"
+        type="text/javascript"></script>
+
+<style>
+
+body {
+  margin: 0;
+  background: #111;
+  color: white;
+  font-family: Arial, sans-serif;
+  text-align: center;
+}
+
+.container {
+  max-width: 600px;
+  margin: auto;
+  padding: 20px;
+}
+
+h1 {
+  margin-bottom: 5px;
+  font-size: 25px;
+}
+
+.gold {
+  color: #f4c430;
+  font-weight: bold;
+  margin-bottom: 20px;
+}
+
+#reader {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 20px auto;
+}
+
+#result {
+  margin-top: 20px;
+  padding: 20px;
+  border-radius: 15px;
+  min-height: 80px;
+}
+
+.success {
+  background: #164d22;
+}
+
+.bad {
+  background: #632020;
+}
+
+.warn {
+  background: #66510d;
+}
+
+.name {
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.big {
+  font-size: 20px;
+  margin: 8px;
+}
+
+button {
+  background: #f4c430;
+  color: #111;
+  border: none;
+  padding: 15px 25px;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+<div class="container">
+
+<h1>LEWIS COUNTY HIGH SCHOOL</h1>
+
+<div class="gold">
+STUDENT ATHLETIC PASS
+</div>
+
+<button id="startButton"
+        onclick="startScanner()">
+
+START SCANNER
+
+</button>
+
+<div id="reader"></div>
+
+<div id="result"></div>
+
+</div>
+
+
+<script>
+
+const API_URL =
+"https://script.google.com/macros/s/AKfycbzFih6G6E6XcMCtzWFHr402OdeCOUsXfQIoZJCeT_98F1DXB2-25Ut0fE5iTnZqh9kCIw/exec";
+
+
+let scanner = null;
+
+let scanning = false;
+
+
+function startScanner() {
+
+  document.getElementById("startButton")
+    .style.display = "none";
+
+
+  scanner =
+    new Html5Qrcode("reader");
+
+
+  scanning = true;
+
+
+  scanner.start(
+
+    {
+      facingMode: "environment"
+    },
+
+    {
+      fps: 10,
+
+      qrbox: {
+        width: 250,
+        height: 250
+      }
+
+    },
+
+
+    function(decodedText) {
+
+      if (!scanning) return;
+
+      scanning = false;
+
+
+      scanner.stop()
+
+        .then(function() {
+
+          processStudent(decodedText);
+
+        })
+
+        .catch(function() {
+
+          processStudent(decodedText);
+
+        });
+
+    },
+
+
+    function(errorMessage) {
+
+      // Ignore normal QR scanning errors.
+
+    }
+
+  )
+
+
+  .catch(function(error) {
+
+    showError(
+      "CAMERA ERROR",
+      error.message
+    );
+
+
+    document.getElementById("startButton")
+      .style.display = "inline-block";
+
+  });
+
+}
+
+
+function processStudent(studentId) {
+
+  showMessage(
+    "CHECKING STUDENT..."
+  );
+
+
+  const callbackName =
+    "lchsCallback_" +
+    Date.now();
+
+
+  window[callbackName] =
+    function(result) {
+
+      delete window[callbackName];
+
+      showResult(result);
+
+    };
+
+
+  const script =
+    document.createElement("script");
+
+
+  script.src =
+
+    API_URL +
+
+    "?action=scan" +
+
+    "&studentId=" +
+    encodeURIComponent(studentId) +
+
+    "&scanner=" +
+    encodeURIComponent("Main Gate") +
+
+    "&callback=" +
+    callbackName;
+
+
+  script.onerror =
+    function() {
+
+      delete window[callbackName];
+
+      showError(
+        "SYSTEM ERROR",
+        "Could not contact attendance system."
+      );
+
+    };
+
+
+  document.body.appendChild(script);
+
+}
+
+
+function showResult(r) {
+
+  if (r.ok) {
+
+    document.getElementById("result")
+      .className = "success";
+
+
+    document.getElementById("result")
+      .innerHTML =
+
+      '<div class="name">✓ ' +
+      escapeHtml(r.student) +
+      '</div>' +
+
+      '<div class="big">GRADE ' +
+      escapeHtml(r.grade) +
+      '</div>' +
+
+      '<div class="big">' +
+      'ATTENDANCE RECORDED' +
+      '</div>' +
+
+      '<div>' +
+      escapeHtml(r.event) +
+      '</div>' +
+
+      '<div style="margin-top:10px">' +
+      'Total Events: <b>' +
+      escapeHtml(r.total) +
+      '</b>' +
+      '</div>';
+
+  }
+
+
+  else if (r.type === "DUPLICATE") {
+
+    document.getElementById("result")
+      .className = "warn";
+
+
+    document.getElementById("result")
+      .innerHTML =
+
+      '<div class="name">' +
+      '⚠ ALREADY CHECKED IN' +
+      '</div>' +
+
+      '<div class="big">' +
+      escapeHtml(r.student) +
+      '</div>';
+
+  }
+
+
+  else {
+
+    showError(
+      "✕ " + r.message,
+      ""
+    );
+
+  }
+
+
+  setTimeout(function() {
+
+    resetScanner();
+
+  }, 2500);
+
+}
+
+
+function showMessage(message) {
+
+  const result =
+    document.getElementById("result");
+
+
+  result.className = "";
+
+
+  result.innerHTML =
+
+    '<div class="big">' +
+    message +
+    '</div>';
+
+}
+
+
+function showError(title, message) {
+
+  const result =
+    document.getElementById("result");
+
+
+  result.className = "bad";
+
+
+  result.innerHTML =
+
+    '<div class="name">' +
+    escapeHtml(title) +
+    '</div>' +
+
+    '<div class="big">' +
+    escapeHtml(message) +
+    '</div>';
+
+}
+
+
+function resetScanner() {
+
+  document.getElementById("result")
+    .className = "";
+
+
+  document.getElementById("result")
+    .innerHTML = "";
+
+
+  document.getElementById("reader")
+    .innerHTML = "";
+
+
+  document.getElementById("startButton")
+    .style.display = "inline-block";
+
+
+  scanner = null;
+
+  scanning = false;
+
+}
+
+
+function escapeHtml(text) {
+
+  return String(text)
+    .replace(/[&<>"']/g, function(m) {
+
+      return {
+
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+
+      }[m];
+
+    });
+
+}
+
+</script>
+
+</body>
+
+</html>
