@@ -3,11 +3,18 @@
 
 <head>
 
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1"
+>
 
 <title>LCHS Student Athletic Pass</title>
 
-<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<script
+  src="https://unpkg.com/html5-qrcode"
+  type="text/javascript">
+</script>
+
 
 <style>
 
@@ -37,18 +44,74 @@ h1 {
 
 .subtitle {
   color: #f4c430;
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 20px;
+}
+
+.card {
+  background: #222222;
+  padding: 20px;
+  border-radius: 14px;
+  margin-bottom: 15px;
+}
+
+label {
+  display: block;
+  margin-bottom: 10px;
   font-weight: bold;
   font-size: 18px;
+}
+
+select {
+  width: 100%;
+  padding: 15px;
+  border-radius: 8px;
+  font-size: 17px;
   margin-bottom: 15px;
+}
+
+button {
+  background: #f4c430;
+  color: #111111;
+  border: none;
+  padding: 15px 25px;
+  border-radius: 9px;
+  font-size: 18px;
+  font-weight: bold;
+  margin: 8px;
+}
+
+.secondary {
+  background: #444444;
+  color: white;
+}
+
+#selectedEvent {
+  display: none;
+  background: #222222;
+  border: 2px solid #f4c430;
+  padding: 15px;
+  border-radius: 12px;
+  margin-bottom: 15px;
+}
+
+.eventName {
+  font-size: 22px;
+  font-weight: bold;
+}
+
+.eventDetails {
+  margin-top: 6px;
+  color: #cccccc;
 }
 
 #statusBar {
   background: #222222;
-  border-radius: 10px;
   padding: 12px;
+  border-radius: 10px;
   margin-bottom: 15px;
   font-weight: bold;
-  font-size: 18px;
 }
 
 .ready {
@@ -68,68 +131,122 @@ h1 {
   margin-top: 15px;
   padding: 20px;
   border-radius: 15px;
-  min-height: 100px;
+  min-height: 80px;
 }
 
 .success {
   background: #164d22;
 }
 
-.bad {
-  background: #632020;
-}
-
 .warn {
   background: #66510d;
 }
 
+.bad {
+  background: #632020;
+}
+
 .name {
-  font-size: 30px;
+  font-size: 28px;
   font-weight: bold;
 }
 
 .big {
-  font-size: 21px;
+  font-size: 20px;
   margin: 8px;
 }
 
 .small {
-  margin-top: 10px;
+  margin-top: 8px;
   font-size: 15px;
-}
-
-button {
-  background: #f4c430;
-  color: #111111;
-  border: none;
-  padding: 16px 30px;
-  border-radius: 9px;
-  font-size: 18px;
-  font-weight: bold;
-  margin-top: 10px;
 }
 
 </style>
 
 </head>
 
+
 <body>
 
 <div class="container">
 
-<h1>LEWIS COUNTY HIGH SCHOOL</h1>
+<h1>
+LEWIS COUNTY HIGH SCHOOL
+</h1>
 
 <div class="subtitle">
 STUDENT ATHLETIC PASS
 </div>
 
-<div id="statusBar">
-  <span class="ready">PRESS START SCANNER</span>
+
+<!-- EVENT SELECTION -->
+
+<div
+  id="eventSelection"
+  class="card"
+>
+
+<label for="eventSelect">
+SELECT YOUR EVENT
+</label>
+
+<select id="eventSelect">
+
+<option value="">
+Loading events...
+</option>
+
+</select>
+
+<button
+  onclick="chooseEvent()"
+>
+SELECT EVENT
+</button>
+
 </div>
 
-<button id="startButton" onclick="startScanner()">
+
+<!-- SELECTED EVENT -->
+
+<div id="selectedEvent">
+
+<div id="selectedEventName"
+     class="eventName">
+</div>
+
+<div id="selectedEventDetails"
+     class="eventDetails">
+</div>
+
+<button
+  id="startButton"
+  onclick="startScanner()"
+>
 START SCANNER
 </button>
+
+<button
+  class="secondary"
+  onclick="changeEvent()"
+>
+CHANGE EVENT
+</button>
+
+</div>
+
+
+<!-- SCANNER -->
+
+<div
+  id="statusBar"
+  style="display:none;"
+>
+<span class="ready">
+READY TO SCAN
+</span>
+</div>
+
 
 <div id="reader"></div>
 
@@ -140,9 +257,10 @@ START SCANNER
 
 <script>
 
+
 /*
 ====================================================
-NEW GOOGLE APPS SCRIPT URL
+GOOGLE APPS SCRIPT URL
 ====================================================
 */
 
@@ -156,162 +274,81 @@ GLOBALS
 ====================================================
 */
 
+let events = [];
+
+let selectedEvent = null;
+
 let scanner = null;
+
+let scannerStarted = false;
 
 let processing = false;
 
-let scannerRunning = false;
+let lastCode = "";
+
+let lastCodeTime = 0;
 
 
 /*
 ====================================================
-START CAMERA ONCE
+LOAD EVENTS WHEN PAGE OPENS
 ====================================================
 */
 
-function startScanner() {
+window.onload =
+function() {
 
-  document.getElementById("startButton")
-    .style.display = "none";
+  loadEvents();
 
-  scanner = new Html5Qrcode("reader");
-
-  scanner.start(
-
-    {
-      facingMode: "environment"
-    },
-
-    {
-      fps: 12,
-
-      qrbox: {
-        width: 250,
-        height: 250
-      }
-    },
-
-    onScanSuccess,
-
-    function(errorMessage) {
-      // Normal QR detection failures are ignored.
-    }
-
-  )
-
-  .then(function() {
-
-    scannerRunning = true;
-
-    processing = false;
-
-    setStatus("READY TO SCAN", "ready");
-
-  })
-
-  .catch(function(error) {
-
-    console.error(error);
-
-    showError(
-      "CAMERA ERROR",
-      error.message
-    );
-
-    document.getElementById("startButton")
-      .style.display = "inline-block";
-
-    setStatus("SCANNER STOPPED", "");
-
-  });
-
-}
+};
 
 
 /*
 ====================================================
-QR DETECTED
+LOAD ACTIVE EVENTS
 ====================================================
 */
 
-function onScanSuccess(decodedText) {
-
-  /*
-   * Ignore additional QR detections while
-   * one student is being processed.
-   */
-
-  if (processing) {
-    return;
-  }
-
-  processing = true;
-
-  setStatus(
-    "PROCESSING STUDENT...",
-    ""
-  );
-
-
-  /*
-   * IMPORTANT:
-   *
-   * Pause QR detection.
-   * DO NOT stop the camera.
-   */
-
-  try {
-
-    scanner.pause(true);
-
-  }
-
-  catch (e) {
-
-    console.log(
-      "Pause warning:",
-      e
-    );
-
-  }
-
-
-  processStudent(decodedText);
-
-}
-
-
-/*
-====================================================
-SEND STUDENT TO GOOGLE
-====================================================
-*/
-
-function processStudent(studentId) {
-
-  showMessage(
-    "CHECKING STUDENT..."
-  );
-
+function loadEvents() {
 
   const callbackName =
-    "lchsCallback_" +
+    "eventCallback_" +
     Date.now();
 
 
   window[callbackName] =
-    function(result) {
+  function(response) {
 
-      try {
-        delete window[callbackName];
-      }
+    try {
+      delete window[callbackName];
+    }
+    catch (e) {}
 
-      catch (e) {}
+
+    if (
+      !response ||
+      !response.ok
+    ) {
+
+      showEventError(
+        response &&
+        response.message
+          ? response.message
+          : "Could not load events."
+      );
+
+      return;
+
+    }
 
 
-      showResult(result);
+    events =
+      response.events || [];
 
-    };
+
+    populateEvents();
+
+  };
 
 
   const script =
@@ -322,11 +359,489 @@ function processStudent(studentId) {
 
     API_URL +
 
+    "?action=events" +
+
+    "&callback=" +
+    callbackName;
+
+
+  script.onerror =
+  function() {
+
+    showEventError(
+      "Could not contact attendance system."
+    );
+
+  };
+
+
+  document.body.appendChild(script);
+
+}
+
+
+/*
+====================================================
+POPULATE EVENT DROPDOWN
+====================================================
+*/
+
+function populateEvents() {
+
+  const select =
+    document.getElementById(
+      "eventSelect"
+    );
+
+
+  select.innerHTML =
+    '<option value="">' +
+    'Choose an event...' +
+    '</option>';
+
+
+  if (
+    events.length === 0
+  ) {
+
+    select.innerHTML =
+      '<option value="">' +
+      'No active events found' +
+      '</option>';
+
+    return;
+
+  }
+
+
+  events.forEach(
+    function(event) {
+
+      const option =
+        document.createElement(
+          "option"
+        );
+
+
+      option.value =
+        event.id;
+
+
+      let text =
+        event.name;
+
+
+      if (event.date) {
+
+        text +=
+          " — " +
+          event.date;
+
+      }
+
+
+      option.textContent =
+        text;
+
+
+      select.appendChild(
+        option
+      );
+
+    }
+  );
+
+}
+
+
+/*
+====================================================
+SELECT EVENT
+====================================================
+*/
+
+function chooseEvent() {
+
+  const eventId =
+    document.getElementById(
+      "eventSelect"
+    ).value;
+
+
+  if (!eventId) {
+
+    alert(
+      "Please select an event."
+    );
+
+    return;
+
+  }
+
+
+  selectedEvent =
+    events.find(
+      function(event) {
+
+        return (
+          String(event.id) ===
+          String(eventId)
+        );
+
+      }
+    );
+
+
+  if (!selectedEvent) {
+
+    alert(
+      "Event could not be found."
+    );
+
+    return;
+
+  }
+
+
+  document.getElementById(
+    "eventSelection"
+  ).style.display =
+    "none";
+
+
+  document.getElementById(
+    "selectedEvent"
+  ).style.display =
+    "block";
+
+
+  document.getElementById(
+    "selectedEventName"
+  ).textContent =
+    selectedEvent.name;
+
+
+  let details = [];
+
+
+  if (
+    selectedEvent.sport
+  ) {
+
+    details.push(
+      selectedEvent.sport
+    );
+
+  }
+
+
+  if (
+    selectedEvent.date
+  ) {
+
+    details.push(
+      selectedEvent.date
+    );
+
+  }
+
+
+  if (
+    selectedEvent.location
+  ) {
+
+    details.push(
+      selectedEvent.location
+    );
+
+  }
+
+
+  document.getElementById(
+    "selectedEventDetails"
+  ).textContent =
+    details.join(" • ");
+
+}
+
+
+/*
+====================================================
+CHANGE EVENT
+====================================================
+*/
+
+function changeEvent() {
+
+  /*
+   * We intentionally prevent event changes
+   * while the camera is actively running.
+   */
+
+  if (scannerStarted) {
+
+    alert(
+      "Close or refresh the scanner page before changing events."
+    );
+
+    return;
+
+  }
+
+
+  selectedEvent =
+    null;
+
+
+  document.getElementById(
+    "selectedEvent"
+  ).style.display =
+    "none";
+
+
+  document.getElementById(
+    "eventSelection"
+  ).style.display =
+    "block";
+
+}
+
+
+/*
+====================================================
+START SCANNER
+====================================================
+*/
+
+function startScanner() {
+
+  if (!selectedEvent) {
+
+    alert(
+      "Select an event first."
+    );
+
+    return;
+
+  }
+
+
+  if (scannerStarted) {
+    return;
+  }
+
+
+  document.getElementById(
+    "startButton"
+  ).style.display =
+    "none";
+
+
+  document.getElementById(
+    "statusBar"
+  ).style.display =
+    "block";
+
+
+  scanner =
+    new Html5Qrcode(
+      "reader"
+    );
+
+
+  scanner.start(
+
+    {
+      facingMode:
+        "environment"
+    },
+
+    {
+
+      fps: 12,
+
+      qrbox: {
+
+        width: 250,
+
+        height: 250
+
+      }
+
+    },
+
+    onScanSuccess,
+
+    function(errorMessage) {
+
+      /*
+       * Normal unsuccessful QR
+       * detection frames are ignored.
+       */
+
+    }
+
+  )
+
+  .then(
+    function() {
+
+      scannerStarted =
+        true;
+
+
+      processing =
+        false;
+
+
+      setStatus(
+        "READY TO SCAN",
+        "ready"
+      );
+
+    }
+  )
+
+  .catch(
+    function(error) {
+
+      showError(
+        "CAMERA ERROR",
+        error.message
+      );
+
+
+      document.getElementById(
+        "startButton"
+      ).style.display =
+        "inline-block";
+
+    }
+  );
+
+}
+
+
+/*
+====================================================
+QR DETECTED
+====================================================
+*/
+
+function onScanSuccess(
+  decodedText
+) {
+
+  if (processing) {
+    return;
+  }
+
+
+  const code =
+    String(
+      decodedText
+    ).trim();
+
+
+  const now =
+    Date.now();
+
+
+  /*
+   * Prevent the same visible QR
+   * from repeatedly firing.
+   */
+
+  if (
+
+    code === lastCode &&
+
+    now - lastCodeTime <
+      4000
+
+  ) {
+
+    return;
+
+  }
+
+
+  lastCode =
+    code;
+
+
+  lastCodeTime =
+    now;
+
+
+  processing =
+    true;
+
+
+  setStatus(
+    "PROCESSING STUDENT...",
+    ""
+  );
+
+
+  processStudent(
+    code
+  );
+
+}
+
+
+/*
+====================================================
+PROCESS STUDENT
+====================================================
+*/
+
+function processStudent(
+  studentId
+) {
+
+  const callbackName =
+    "scanCallback_" +
+    Date.now();
+
+
+  window[callbackName] =
+  function(response) {
+
+    try {
+      delete window[callbackName];
+    }
+    catch (e) {}
+
+
+    showResult(
+      response
+    );
+
+  };
+
+
+  const script =
+    document.createElement(
+      "script"
+    );
+
+
+  script.src =
+
+    API_URL +
+
     "?action=scan" +
 
     "&studentId=" +
     encodeURIComponent(
-      String(studentId).trim()
+      studentId
+    ) +
+
+    "&eventId=" +
+    encodeURIComponent(
+      selectedEvent.id
     ) +
 
     "&scanner=" +
@@ -339,51 +854,44 @@ function processStudent(studentId) {
 
 
   script.onerror =
-    function() {
+  function() {
 
-      try {
-        delete window[callbackName];
-      }
+    showError(
 
-      catch (e) {}
+      "SYSTEM ERROR",
 
+      "Could not contact attendance system."
 
-      showError(
-
-        "SYSTEM ERROR",
-
-        "Could not contact attendance system."
-
-      );
+    );
 
 
-      resumeAfterDelay();
+    unlockScanner();
 
-    };
+  };
 
 
-  document.body.appendChild(script);
+  document.body.appendChild(
+    script
+  );
 
 }
 
 
 /*
 ====================================================
-SHOW RESULT
+DISPLAY SCAN RESULT
 ====================================================
 */
 
 function showResult(r) {
 
 
-  /*
-   * SUCCESSFUL CHECK-IN
-   */
-
   if (r.ok) {
 
     const result =
-      document.getElementById("result");
+      document.getElementById(
+        "result"
+      );
 
 
     result.className =
@@ -396,7 +904,9 @@ function showResult(r) {
 
       '✓ ' +
 
-      escapeHtml(r.student) +
+      escapeHtml(
+        r.student
+      ) +
 
       '</div>' +
 
@@ -404,7 +914,9 @@ function showResult(r) {
 
       'GRADE ' +
 
-      escapeHtml(r.grade) +
+      escapeHtml(
+        r.grade
+      ) +
 
       '</div>' +
 
@@ -416,7 +928,9 @@ function showResult(r) {
 
       '<div>' +
 
-      escapeHtml(r.event) +
+      escapeHtml(
+        r.event
+      ) +
 
       '</div>' +
 
@@ -424,11 +938,11 @@ function showResult(r) {
 
       'Total Events Attended: <b>' +
 
-      escapeHtml(r.total) +
+      escapeHtml(
+        r.total
+      ) +
 
-      '</b>' +
-
-      '</div>';
+      '</b></div>';
 
 
     setStatus(
@@ -439,16 +953,15 @@ function showResult(r) {
   }
 
 
-  /*
-   * DUPLICATE
-   */
-
   else if (
-    r.type === "DUPLICATE"
+    r.type ===
+    "DUPLICATE"
   ) {
 
     const result =
-      document.getElementById("result");
+      document.getElementById(
+        "result"
+      );
 
 
     result.className =
@@ -465,13 +978,17 @@ function showResult(r) {
 
       '<div class="big">' +
 
-      escapeHtml(r.student) +
+      escapeHtml(
+        r.student
+      ) +
 
       '</div>' +
 
       '<div>' +
 
-      escapeHtml(r.event || "") +
+      escapeHtml(
+        r.event || ""
+      ) +
 
       '</div>';
 
@@ -483,10 +1000,6 @@ function showResult(r) {
 
   }
 
-
-  /*
-   * OTHER ERROR
-   */
 
   else {
 
@@ -511,86 +1024,53 @@ function showResult(r) {
   }
 
 
-  resumeAfterDelay();
+  unlockScanner();
 
 }
 
 
 /*
 ====================================================
-RESUME SAME CAMERA
+UNLOCK FOR NEXT STUDENT
 ====================================================
 */
 
-function resumeAfterDelay() {
+function unlockScanner() {
 
   /*
-   * Show the result for 2 seconds.
+   * Camera stays open.
+   * We only temporarily lock QR processing.
    */
 
   setTimeout(
 
     function() {
 
-      document.getElementById("result")
-        .className = "";
+      document.getElementById(
+        "result"
+      ).className =
+        "";
 
 
-      document.getElementById("result")
-        .innerHTML = "";
+      document.getElementById(
+        "result"
+      ).innerHTML =
+        "";
 
 
-      /*
-       * Resume QR detection without
-       * closing/reopening the camera.
-       */
-
-      try {
-
-        scanner.resume();
-
-        processing = false;
-
-        setStatus(
-          "READY TO SCAN",
-          "ready"
-        );
-
-      }
-
-      catch (error) {
-
-        console.error(
-          "Resume error:",
-          error
-        );
+      processing =
+        false;
 
 
-        /*
-         * Only show restart button if something
-         * actually went wrong with the camera.
-         */
-
-        processing = false;
-
-        scannerRunning = false;
-
-
-        showError(
-          "SCANNER ERROR",
-          "Tap START SCANNER to restart."
-        );
-
-
-        document.getElementById("startButton")
-          .style.display =
-          "inline-block";
-
-      }
+      setStatus(
+        "READY TO SCAN",
+        "ready"
+      );
 
     },
 
     2000
+
   );
 
 }
@@ -602,33 +1082,15 @@ HELPERS
 ====================================================
 */
 
-function showMessage(message) {
-
-  const result =
-    document.getElementById("result");
-
-
-  result.className = "";
-
-
-  result.innerHTML =
-
-    '<div class="big">' +
-
-    escapeHtml(message) +
-
-    '</div>';
-
-}
-
-
 function showError(
   title,
   message
 ) {
 
   const result =
-    document.getElementById("result");
+    document.getElementById(
+      "result"
+    );
 
 
   result.className =
@@ -648,6 +1110,29 @@ function showError(
     escapeHtml(message) +
 
     '</div>';
+
+}
+
+
+function showEventError(
+  message
+) {
+
+  const select =
+    document.getElementById(
+      "eventSelect"
+    );
+
+
+  select.innerHTML =
+
+    '<option value="">' +
+
+    escapeHtml(
+      message
+    ) +
+
+    '</option>';
 
 }
 
@@ -674,7 +1159,9 @@ function setStatus(
 }
 
 
-function escapeHtml(text) {
+function escapeHtml(
+  text
+) {
 
   return String(text)
     .replace(
